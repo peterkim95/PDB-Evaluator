@@ -66,8 +66,10 @@ def lift(Q, P):
             seperator_var = seperator_var_set.pop()
             _LOGGER.info("found decomposable quantifier with sep var: {}".format(seperator_var))
 
-            print(P.ground(Q.table.pop(), Q.vars))
-            return
+            for possible_val in P.ground(Q.table.pop(), 0):
+                for clause in Q.clause:
+                    a *= (1 - lift(query.parseString(''.join(clause).replace(seperator_var, possible_val)), P))
+            return 1- a
 
 
     # decomposable universal quantifier
@@ -87,8 +89,8 @@ class PDB():
         except Exception:
             return False
 
-    def ground(self, table, var):
-        return [key for key in getattr(self, table)]
+    def ground(self, table, varindex):
+        return [key[varindex] for key in getattr(self, table)]
             
 
 pdb = PDB()
