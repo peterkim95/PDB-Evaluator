@@ -7,7 +7,9 @@ import traceback
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
-test_query = "R(x1),X(s1,y1) || S(x2, y2), T(x2)"
+# test_query = "R(x1),X(x1,y1) || S(x2, y2), T(x2)"
+test_query_2 = "R(x1, y1), Q(x1)"
+test_query_1 = "R(x1, y1), P(x1), Q(x2), R(x2, y2)"
 
 varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
 tablename = Word(alphas.upper(), exact=1).setResultsName('table', listAllMatches=True)
@@ -89,6 +91,7 @@ def lift(Q, pdb, subsitutions):
                 new[seperator_var] = grounding
                 return new
 
+            # note that a grounding is only non-zero if it's present in all of the tables, so we can use intersection here
             possible_values = set.intersection(*[pdb.ground(clause.table.pop(), list(clause.vars).index(seperator_var)) for clause in Q.clause])
             new_subsitutions = [generate_grounding(seperator_var, grounding) for grounding in possible_values]
             _LOGGER.info("{} creating {} new subsitutions: {}".format(indent, len(new_subsitutions), new_subsitutions))
@@ -101,38 +104,26 @@ def lift(Q, pdb, subsitutions):
 
 class PDB():
 
+    P = {
+            ('0',): 0.7, 
+            ('1',): 0.8, 
+            ('2',): 0.6, 
+        }
+
+    Q = {
+            ('0',): 0.7, 
+            ('1',): 0.3, 
+            ('2',): 0.5, 
+        }
+
     R = {
-            ('a',): 0.6, 
-            ('b',): 0.6, 
-            ('c',): 0.6, 
-            ('d',): 0.6, 
-            ('e',): 0.6, 
-            ('f',): 0.6, 
-            ('g',): 0.6, 
+            ('0','0'): 0.8,
+            ('0','1'): 0.4,
+            ('0','2'): 0.5,
+            ('1','2'): 0.6,
+            ('2','2'): 0.9,
         }
 
-    X = {
-            ('a','a'): 0.7
-        }
-
-    S = {
-            ('a','a'): 0.7,
-            ('r','a'): 0.7,
-            ('w','a'): 0.7,
-            ('x','a'): 0.7,
-            ('y','a'): 0.7,
-            ('z','a'): 0.7,
-        }
-
-    T = {
-            ('a',): 0.6, 
-            ('b',): 0.6, 
-            ('c',): 0.6, 
-            ('d',): 0.6, 
-            ('e',): 0.6, 
-            ('f',): 0.6, 
-            ('g',): 0.6, 
-        }
 
     def lookup(self, table, var):
         try:
@@ -145,6 +136,6 @@ class PDB():
             
 
 pdb = PDB()
-parsed_query  = query.parseString(test_query, parseAll=True)
+parsed_query  = query.parseString(test_query_1, parseAll=True)
 _LOGGER.info(lift(parsed_query, pdb, dict()))
 
