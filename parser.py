@@ -49,8 +49,10 @@ def lift(Q, pdb, subsitutions):
 
         if q1 and q2:
             _LOGGER.info("{} DECOMPOSABLE DISJUNCTION: q1: {} and q2: {}".format(indent, pretty(q1), pretty(q2)))
-            return 1-((1-lift(q1, pdb, subsitutions))\
+            prob = 1-((1-lift(q1, pdb, subsitutions))\
                      *(1-lift(q2, pdb, subsitutions)))
+            _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
+            return prob
 
         else:
             #TODO figure out inclusion exclusion
@@ -72,7 +74,9 @@ def lift(Q, pdb, subsitutions):
         # decomposable conjunction
         if q2 and q2:
             _LOGGER.info("{} DECOMPOSABLE CONJUNCTION: q1: {} and q2: {}".format(indent, pretty(q1), pretty(q2)))
-            return lift(q1, pdb, subsitutions) * lift(q2, pdb, subsitutions)
+            prob = lift(q1, pdb, subsitutions) * lift(q2, pdb, subsitutions)
+            _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
+            return prob
 
         # try to find a seperator variable only 
         seperator_var_set = set.intersection(*[set(clause.vars) for clause in Q.clause]) - subsitutions.keys()
@@ -85,14 +89,12 @@ def lift(Q, pdb, subsitutions):
                 new[seperator_var] = grounding
                 return new
 
-            new_subsitutions = [generate_grounding(seperator_var, grounding) for grounding in pdb.ground(Q.table.pop(), list(Q.vars).index(seperator_var))]
-            # _LOGGER.info("creating new subsitutions: {}".format(new_subsitutions))
+            possible_values = set.intersection(*[pdb.ground(clause.table.pop(), list(clause.vars).index(seperator_var)) for clause in Q.clause])
+            new_subsitutions = [generate_grounding(seperator_var, grounding) for grounding in possible_values]
+            _LOGGER.info("{} creating {} new subsitutions: {}".format(indent, len(new_subsitutions), new_subsitutions))
             prob = 1 - reduce(operator.mul, map(lambda x: 1-lift(Q, pdb, x), new_subsitutions))
             _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
             return prob
-
-
-
 
     # decomposable universal quantifier
     raise ValueError("Query {} is non-heirarchical!".format(''.join(Q)))
@@ -139,7 +141,6 @@ class PDB():
             return 0
 
     def ground(self, table, varindex):
-        _LOGGER.info("Working on table: {}".format(table))
         return set([key[varindex] for key in getattr(self, table)])
             
 
