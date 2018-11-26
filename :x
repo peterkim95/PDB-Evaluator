@@ -1,7 +1,5 @@
 from pyparsing import *
 import logging
-from functools import reduce
-import operator
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
@@ -19,16 +17,14 @@ print(parsed_query.dump())
 
 print("\n Doing lifted inference... \n")
 
-def lift(Q, P, subsitutions):
-    _LOGGER.info("working on query : {} with subsitutions: {}".format(''.join(Q), subsitutions))
-    
-    #all instantiated -> 
-    if len(Q.table) == 1:
-        table = Q.table.pop()
+def lift(Q, P):
+    _LOGGER.info("working on query : {}".format(''.join(Q)))
 
-        if subsitutions.keys() == set(Q.vars):
-            _LOGGER.info("all vars instantiated, doing lookup for {} with {} ".format(''.join(Q), subsitutions))
-            return P.lookup(table, (subsitutions[v] for v in Q.vars))
+    def compute_seperator(Q, var):
+        if len(Q.table) == 1 and len(Q.vars) == 1:
+            for grounding in P.ground(Q.table.pop(), Q.vars.pop()):
+                _LOGGER.info("Subsituting {} with {}".format(var, grounding))
+                return 0.5
 
     if len(Q.conj) > 1:
         # independent if share no tables
@@ -43,7 +39,7 @@ def lift(Q, P, subsitutions):
 
         if q1 and q2:
             _LOGGER.info("found decomposable disjunction q1: {} and q2: {}".format(''.join(q1), ''.join(q2)))
-            return 1-((1-lift(q1, P, subsitutions)) * (1-lift(q2, P, subsitutions)))
+            return 1-((1-lift(q1, P)) * (1-lift(q2, P)))
         else:
             _LOGGER.info("Use inclusion-exclusion")
 
@@ -60,43 +56,32 @@ def lift(Q, P, subsitutions):
         # decomposable conjunction
         if q2 and q2:
             _LOGGER.info("found decomposable conjunction q1: {} and q2: {}".format(''.join(q1), ''.join(q2)))
-            return lift(q1, P, subsitutions) * lift(q2, P, subsitutions)
+            return lift(q1, P) * lift(q2, P)
 
         # try to find a seperator variable only 
-        seperator_var_set = set.intersection(*[set(clause.vars) for clause in Q.clause]) - subsitutions.keys()
+        seperator_var_set = set.intersection(*[set(clause.vars) for clause in Q.clause])
         if seperator_var_set:
             seperator_var = seperator_var_set.pop()
             _LOGGER.info("found decomposable quantifier with sep var: {}".format(seperator_var))
 
-            def generate_grounding(seperator_var, grounding):
-                new = subsitutions.copy()
-                new[seperator_var] = grounding
-                return new
-
-            new_subsitutions = [generate_grounding(seperator_var, grounding) for grounding in P.ground(Q.table.pop(), list(Q.vars).index(seperator_var))]
-            print(new_subsitutions)
-            prob = 1 - reduce(operator.mul, map(lambda x: 1-lift(Q, P, x), new_subsitutions), 1)
-            _LOGGER.info("prob: {}".format(prob))
-            return prob
-
+            return compute_seperator(''.join(Q), seperator_var)
 
 
     # decomposable universal quantifier
-    raise ValueError("Query {} is non-heirarchical!".format(''.join(Q)))
+    raise ValueError("Query {} is non-heirarchical!".format(Q))
 
 
 class PDB():
 
-    R = {('a',): 0.6}
-    X = {('a','a'): 0.7}
-    S = {('a','a'): 0.3}
-    T = {('a',): 0.2}
+    R = {('1',): 0.4}
+    X = {('1','1'): 0.4}
+    S = {('1','1'): 0.4}
+    T = {('1',): 0.4}
 
     def lookup(self, table, var):
         try:
             return getattr(self, table)[tuple(var)]
-        except Exception as e:
-            _LOGGER.exception(e)
+        except Exception:
             return False
 
     def ground(self, table, varindex):
@@ -104,5 +89,5 @@ class PDB():
             
 
 pdb = PDB()
-_LOGGER.info(lift(parsed_query, pdb, dict()))
+_LOGGER.info(lift(parsed_query, pdb))
 
