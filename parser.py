@@ -1,15 +1,18 @@
 from pyparsing import *
 import logging
-from functools import reduce
+from functools import reduce 
+import itertools
 import operator
 import traceback
+import math
+from pprint import pprint
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
-# test_query = "R(x1),X(x1,y1) || S(x2, y2), T(x2)"
-test_query_2 = "R(x1, y1), Q(x1)"
-test_query_1 = "R(x1, y1), P(x1), Q(x2), R(x2, y2)"
+test_query = "P(x1),R(x1,y1) || R(x3, z2), Q(x1)"
+# test_query = "R(x1, y1), Q(x1)"
+# test_query = "R(x1, y1), P(x1), Q(x2), R(x2, y2)"
 
 varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
 tablename = Word(alphas.upper(), exact=1).setResultsName('table', listAllMatches=True)
@@ -17,9 +20,10 @@ clause = (tablename + '(' + (varname + ZeroOrMore(',' + varname)) + ')').setResu
 conj = (clause + ZeroOrMore(',' + clause)).setResultsName('conj', listAllMatches=True)
 query = (conj + ZeroOrMore('||' + conj)).setResultsName('query', listAllMatches=True)
 
+
 print("\n Doing lifted inference... \n")
 
-def lift(Q, pdb, subsitutions):
+def lift(query_string, pdb, subsitutions):
     
     def pretty(Q):
         formatted = ''.join(Q)
@@ -27,8 +31,12 @@ def lift(Q, pdb, subsitutions):
             formatted = formatted.replace(var, subsitutions[var])
         return formatted
 
-    indent = '...' * (len(traceback.extract_stack()) - 2)
+    def set_vars(x):
+        return set(x.vars)
 
+    indent = '.....' * (len(traceback.extract_stack()) - 2)
+
+    Q = query.parseString(query_string)
     _LOGGER.info("{} LIFT: working on query: {} with subsitutions: {}".format(indent, pretty(Q), subsitutions))
 
     # base case of recursion, 1 table and vars all instantiated 
@@ -39,15 +47,15 @@ def lift(Q, pdb, subsitutions):
         return prob
 
     if len(Q.conj) > 1:
-        # finds decomposable disjunction
-        q1, q2 = None, None
-        for conj in Q.conj:
-            if q1 is None:
-                q1 = query.parseString(''.join(conj))
-            # independent if share no tables (all vars distinct as given, so this is okay)
-            if not (set(q1.table) & set(conj.table)):
-                q2 = query.parseString(''.join(conj))
-                break
+        #indepndent if q1 and q2 have different vars not in subsitutions
+        q1, q2 = [], []
+        for a in Q.conj:
+            if not q1 or set(a.vars) & set.union(*map(set_vars,q1)) - subsitutions.keys():
+                q1.append(a)
+            else:
+                q2.append(a)
+        q1 =  '||'.join(map(''.join, q1))
+        q2 =  '||'.join(map(''.join, q2))
 
         if q1 and q2:
             _LOGGER.info("{} DECOMPOSABLE DISJUNCTION: q1: {} and q2: {}".format(indent, pretty(q1), pretty(q2)))
@@ -58,30 +66,30 @@ def lift(Q, pdb, subsitutions):
 
         else:
             #TODO figure out inclusion exclusion
-            _LOGGER.info("Use inclusion-exclusion")
+            # at this point we know its one big conj with all unions
+            _LOGGER.info("{} INCLUSION EXCLUSION: query {}".format(indent, pretty(Q)))
+            test = [''.join(c) for c in Q.conj]
+            a = [math.pow(-1, i) * sum(map(lambda x: lift(','.join(x), pdb, subsitutions), itertools.combinations(test, i+1))) for i in range(len(Q.conj))]
+            print(a)
+            prob = sum(a)
+            _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
+            return prob
+                
 
     # now we are only dealing with conjunctions 
     if len(Q.conj) == 1:
-        #indepndent if q1 and q1 have different tables and vars not in subsitutions
-
-
-        def find_independent(Q):
-            q1, q2 = '', ''
-            for clause in Q.clause:
-                print(clause)
-                #set as first
-                if q1 is None:
-                    q1 += ''.join(clause)
-         
-                if not (set(q1.vars) & set(clause.vars) - subsitutions.keys() or set(q1.table) & set(clause.table)):
-                    q2 += ''.join(clause)
-                    break
-            return query.parseString(q1), query.parseString(q2)
-
-        q1, q2 = find_independent(Q)
+        #indepndent if q1 and q2 have different tables and vars not in subsitutions
+        q1, q2 = [], []
+        for a in Q.clause:
+            if not q1 or set(a.vars) & set.union(*map(set_vars,q1)) - subsitutions.keys():
+                q1.append(a)
+            else:
+                q2.append(a)
+        q1 =  ','.join(map(''.join, q1))
+        q2 =  ','.join(map(''.join, q2))
 
         # decomposable conjunction
-        if q2 and q2:
+        if q1 and q2:
             _LOGGER.info("{} DECOMPOSABLE CONJUNCTION: q1: {} and q2: {}".format(indent, pretty(q1), pretty(q2)))
             prob = lift(q1, pdb, subsitutions) * lift(q2, pdb, subsitutions)
             _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
@@ -91,18 +99,20 @@ def lift(Q, pdb, subsitutions):
         seperator_var_set = set.intersection(*[set(clause.vars) for clause in Q.clause]) - subsitutions.keys()
         if seperator_var_set:
             seperator_var = seperator_var_set.pop()
-            _LOGGER.info("{} DECOMPOSABLE QUANTIFILER: query {} has separator var: {}".format(indent, ''.join(Q), seperator_var))
+            _LOGGER.info("{} DECOMPOSABLE QUANTIFIER: query {} has separator var: {}".format(indent, pretty(Q), seperator_var))
 
             def generate_grounding(seperator_var, grounding):
                 new = subsitutions.copy()
                 new[seperator_var] = grounding
                 return new
 
+            def get_possible_vals(clause):
+                return pdb.ground(clause.table.pop(), list(clause.vars).index(seperator_var))
+
             # note that a grounding is only non-zero if it's present in all of the tables, so we can use intersection here
-            possible_values = set.intersection(*[pdb.ground(clause.table.pop(), list(clause.vars).index(seperator_var)) for clause in Q.clause])
-            new_subsitutions = [generate_grounding(seperator_var, grounding) for grounding in possible_values]
+            new_subsitutions = [generate_grounding(seperator_var, grounding) for grounding in set.intersection(*map(get_possible_vals, Q.clause))]
             _LOGGER.info("{} creating {} new subsitutions: {}".format(indent, len(new_subsitutions), new_subsitutions))
-            prob = 1 - reduce(operator.mul, map(lambda x: 1-lift(Q, pdb, x), new_subsitutions))
+            prob = 1 - reduce(operator.mul, map(lambda x: 1-lift(query_string, pdb, x), new_subsitutions))
             _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
             return prob
 
@@ -131,7 +141,6 @@ class PDB():
             ('2','2'): 0.9,
         }
 
-
     def lookup(self, table, var):
         try:
             return getattr(self, table)[tuple(var)]
@@ -143,6 +152,6 @@ class PDB():
             
 
 pdb = PDB()
-parsed_query  = query.parseString(test_query_1, parseAll=True)
-_LOGGER.info(lift(parsed_query, pdb, dict()))
+# print(parsed_query.dump())
+_LOGGER.info(lift(test_query, pdb, dict()))
 
