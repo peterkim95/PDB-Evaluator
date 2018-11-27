@@ -27,7 +27,7 @@ def lift(Q, pdb, subsitutions):
             formatted = formatted.replace(var, subsitutions[var])
         return formatted
 
-    indent = '....' * (len(traceback.extract_stack()) - 2)
+    indent = '...' * (len(traceback.extract_stack()) - 2)
 
     _LOGGER.info("{} LIFT: working on query: {} with subsitutions: {}".format(indent, pretty(Q), subsitutions))
 
@@ -63,15 +63,22 @@ def lift(Q, pdb, subsitutions):
     # now we are only dealing with conjunctions 
     if len(Q.conj) == 1:
         #indepndent if q1 and q1 have different tables and vars not in subsitutions
-        q1, q2 = None, None
-        for clause in Q.clause:
-            #set as first
-            if q1 is None:
-                q1 = query.parseString(''.join(clause))
-     
-            if not (set(q1.vars) & set(clause.vars) - subsitutions.keys() or set(q1.table) & set(clause.table)):
-                q2 = query.parseString(''.join(clause))
-                break
+
+
+        def find_independent(Q):
+            q1, q2 = '', ''
+            for clause in Q.clause:
+                print(clause)
+                #set as first
+                if q1 is None:
+                    q1 += ''.join(clause)
+         
+                if not (set(q1.vars) & set(clause.vars) - subsitutions.keys() or set(q1.table) & set(clause.table)):
+                    q2 += ''.join(clause)
+                    break
+            return query.parseString(q1), query.parseString(q2)
+
+        q1, q2 = find_independent(Q)
 
         # decomposable conjunction
         if q2 and q2:
