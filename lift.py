@@ -10,9 +10,10 @@ from pprint import pprint
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
-test_query = "P(x1) || Q(x2)"
+# test_query = "P(x1) || Q(x2)"
 # test_query = "R(x1, y1), Q(x1)"
-# test_query = "R(x1, y1), P(x1), Q(x2), R(x2, y2) || P(x1)"
+test_query = "R(x1, y1), P(x1), Q(x2), R(x2, y2)"
+# not (test_quiery
 
 varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
 tablename = Word(alphas.upper(), exact=1).setResultsName('table', listAllMatches=True)
@@ -23,8 +24,11 @@ query = (conj + ZeroOrMore('||' + conj)).setResultsName('query', listAllMatches=
 
 print("\n Doing lifted inference... \n")
 
-def lift(query_string, pdb, subsitutions):
-    
+
+def invert(f):
+    return 1 - f()
+def lift(query_string, pdb, subsitutions, invert=False):
+
     def pretty(Q):
         formatted = ''.join(Q)
         for var in subsitutions:
@@ -49,6 +53,9 @@ def lift(query_string, pdb, subsitutions):
             unions = temp
         return unions
 
+    if (invert):
+        return  1-lift(query_string, pdb, subsitutions, invert=False)
+
     indent = '.....' * (len(traceback.extract_stack()) - 2)
     if len(traceback.extract_stack()) > 50:
         raise ValueError("Recursion")
@@ -63,7 +70,7 @@ def lift(query_string, pdb, subsitutions):
         _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
         return prob
 
-    if len(Q.conj) == 1:
+    if len(Q.conj) > 1:
         def dependent(combination):
             q1, q2 = combination
             return set(q1.table) & set(q2.table) or set(q1.vars) & set(q2.vars) - subsitutions.keys()
@@ -97,7 +104,7 @@ def lift(query_string, pdb, subsitutions):
             return prob
 
     # now we are only dealing with conjunctions 
-    if len(Q.conj) > 1:
+    if len(Q.conj) == 1:
 
         #indepndent if q1 and q2 have different tables and vars not in subsitutions
         def dependent(combination):
@@ -187,4 +194,5 @@ pdb = PDB()
 parsed_query = query.parseString(test_query)
 # print(parsed_query.dump())
 _LOGGER.info(lift(test_query, pdb, dict()))
+
 
