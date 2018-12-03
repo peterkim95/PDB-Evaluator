@@ -1,6 +1,6 @@
 from pyparsing import *
 import logging
-from functools import reduce 
+from functools import reduce
 import itertools
 import operator
 import traceback
@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
 # test_query = "Q(x1)"
-# test_query = "R(x1, y1) || Q(x1)" 
+# test_query = "R(x1, y1) || Q(x1)"
 test_query = "R(x1, y1)|| P(x1)|| Q(x2)|| R(x2, y2)"
 
 # E abcd (a and b and c and d)
@@ -24,7 +24,7 @@ test_query = "R(x1, y1)|| P(x1)|| Q(x2)|| R(x2, y2)"
 # !A abcd !((a and b) or (c and d))
 #         !((a and b) or (c and d))
 #         !(a and  b) and !(c and d)
-#   
+#
 # !A abcd (!a or !b) and  (!c or !d)
 
 varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
@@ -83,8 +83,8 @@ def lift(query_string, pdb, subsitutions, invertLiterals=True):
     indent = '  .' * (len(traceback.extract_stack()) - 2)
     Q = query.parseString(query_string)
     _LOGGER.info("{} LIFT: working on query: {} with subsitutions: {}".format(indent, pretty(Q), subsitutions))
-   
-    # base case of recursion, 1 table and vars all instantiated 
+
+    # base case of recursion, 1 table and vars all instantiated
     if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
         table = Q.table.pop()
         prob = pdb.lookup(table, (subsitutions[v] for v in Q.vars))
@@ -162,7 +162,7 @@ def lift(query_string, pdb, subsitutions, invertLiterals=True):
                 _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
                 return prob
 
-            _LOGGER.info("INCLUSION-EXCLUSION failed") 
+            _LOGGER.info("INCLUSION-EXCLUSION failed")
 
 
     #check for decomposabvle disjunction (just one conj)
@@ -178,7 +178,7 @@ def lift(query_string, pdb, subsitutions, invertLiterals=True):
         _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
         return prob
 
-    # try to find a seperator variable only 
+    # try to find a seperator variable only
     seperator_var_set = set.intersection(*[set(clause.vars) for clause in Q.clause]) - subsitutions.keys()
     if seperator_var_set:
         seperator_var = seperator_var_set.pop()
@@ -204,15 +204,15 @@ def lift(query_string, pdb, subsitutions, invertLiterals=True):
 class PDB():
 
     P = {
-            ('0',): 0.7, 
-            ('1',): 0.8, 
-            ('2',): 0.6, 
+            ('0',): 0.7,
+            ('1',): 0.8,
+            ('2',): 0.6,
         }
 
     Q = {
-            ('0',): 0.7, 
-            ('1',): 0.3, 
-            ('2',): 0.5, 
+            ('0',): 0.7,
+            ('1',): 0.3,
+            ('2',): 0.5,
         }
 
     R = {
@@ -236,7 +236,7 @@ class PDB():
 
     def ground(self, table, varindex):
         return set([key[varindex] for key in getattr(self, table)])
-            
+
 pdb = PDB()
 parsed_query = query.parseString(test_query)
 # print(parsed_query.ump())
