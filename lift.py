@@ -11,6 +11,7 @@ from table import SQLDatabase
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
+_LOGGER.setLevel(logging.WARNING)
 
 class Lifter:
 
@@ -89,6 +90,9 @@ class Lifter:
             prob = reduce(lambda x,y: x * y, inverted_tuple_probs)
             _LOGGER.info("{} RESULT: Prob of query: {} with returned probabilities {} = {}"
                 .format(indent, pretty(Q), tuple_probs, prob))
+            if invertLiterals:
+                return 1 - prob
+            return prob
 
         # base case of recursion, 1 table and vars all instantiated
         if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
@@ -124,7 +128,7 @@ class Lifter:
                     varstest = [{''.join(conj)} for conj in Q.conj]
 
                 varstest = list(map('||'.join, varstest))
-                print(varstest)
+                _LOGGER.info(varstest)
 
                 #break on varset (possible to run inclusion exclusion)
                 if len(varstest) > 1:
@@ -215,6 +219,8 @@ class Lifter:
 def main():
     # test for test_query1
     print(Lifter(['data/table_files/T1.txt', 'data/table_files/T2.txt', 'data/table_files/T3.txt']).lift('R(x1, y1) || Q(x1)'))
+    # test for large query T4
+    #print(Lifter(['data/table_files/T1.txt', 'data/table_files/T4.txt']).lift('Z(x1,x2,x3,x4) || P(x1)'))
 
 if __name__ == '__main__':
     main()
