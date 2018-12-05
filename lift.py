@@ -6,8 +6,7 @@ import operator
 import traceback
 import math
 from pprint import pprint
-
-from table import SQLDatabase
+from db import SQLDatabase
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
@@ -197,7 +196,9 @@ class Lifter:
 
 
     def lift(self, query):
-        return 1 - self._lift_helper(query, dict(), invertLiterals=True)
+        answer = 1 - self._lift_helper(query, dict(), invertLiterals=True)
+        _LOGGER.info(' FINAL RESULT: P({}) = {}'.format(query, answer))
+        return answer
 
 
 def main():

@@ -9,12 +9,12 @@ def main():
     args = parser.parse_args()
     args.table = [item for sublist in args.table for item in sublist] # flatten 2d list
 
-    l = Lifter(args.table)
     # perform inference for all queries
+    l = Lifter(args.table)
     with open(args.query) as f:
         for query in f:
             q = query.rstrip('\n')
-            print('*** Pr({}) = {} ***'.format(q, l.lift(q)))
+            l.lift(q)
 
 if __name__ == '__main__':
     main()
