@@ -35,6 +35,18 @@ class SQLDatabase:
         cur.execute(query)
         return cur.fetchall()
 
+    def getcol(self, table, var, missing_var):
+        where_clause = ' WHERE'
+        for i, v in enumerate(tuple(var)):
+
+            where_clause += ' c{} = {} AND'.format(i, v)
+
+        q = 'SELECT Pr FROM {}'.format(table) + where_clause[:-3]
+        rows = self._execute_query(q)
+        if not rows:
+            return 0
+        return rows
+
     def lookup(self, table, var):
         where_clause = ' WHERE'
         for i, v in enumerate(tuple(var)):

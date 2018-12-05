@@ -78,6 +78,18 @@ class Lifter:
         Q = self.query.parseString(query_string)
         _LOGGER.info("{} LIFT: working on query: {} with subsitutions: {}".format(indent, pretty(Q), subsitutions))
 
+        # Speedup of a base case when there's only 1 var left to ground
+        if len(Q.table) == 1 and len(subsitutions.keys()) == len(set(Q.vars)) - 1:
+            table = Q.table.pop()
+            missing_var = set(Q.vars).difference(subsitutions.keys()).pop()
+            almost_Q = [x for x in Q.vars if x != missing_var]
+            tuple_probs = [row[0] for row in self.pdb.getcol(table, 
+                (subsitutions[v] for v in almost_Q), missing_var)]
+            inverted_tuple_probs = [1 - x for x in tuple_probs]
+            prob = reduce(lambda x,y: x * y, inverted_tuple_probs)
+            _LOGGER.info("{} RESULT: Prob of query: {} with returned probabilities {} = {}"
+                .format(indent, pretty(Q), tuple_probs, prob))
+
         # base case of recursion, 1 table and vars all instantiated
         if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
             table = Q.table.pop()
