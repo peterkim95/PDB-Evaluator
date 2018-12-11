@@ -1,1 +1,3 @@
-{}
+{
+  "test/test_lift.py::test_basic": true
+}

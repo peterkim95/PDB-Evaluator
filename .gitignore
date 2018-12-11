@@ -2,3 +2,4 @@ venv/*
 __pycache__/*
 *.pyc
 NELL.08m.1115.esv.csv
+.DS_Store
