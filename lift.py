@@ -34,8 +34,11 @@ class Lifter:
     # !A abcd (!a or !b) and  (!c or !d)
 
     def __init__(self, args):
-        self.pdb = SQLDatabase(db_name=args.db_name, table_files=args.table, create_index=args.index)
-
+        self.pdb = SQLDatabase(db_name=getattr(args,'db_name', ':memory:'),
+                table_files=getattr(args,'table', []),
+                create_index=getattr(args, 'index', False)
+        )    
+        
         varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
         tablename = Word(alphas).setResultsName('table', listAllMatches=True)
         clause = (tablename + '(' + (varname + ZeroOrMore(',' + varname)) + ')').setResultsName('clause', listAllMatches=True)
@@ -228,13 +231,13 @@ class Lifter:
 def main():
     class args(object):
         def __init__(self):
-            # self.table = ['data/table_files/T1.txt', 'data/table_files/T2.txt', 'data/table_files/T3.txt']
-            self.table = []
-            self.db_name = 'nell_noindex.db'
-            args.index = True
-            args.is_nell = True
-    print(Lifter(args()).lift('R(x1, y1) || Q(x1)'))
-    # print(Lifter(args()).lift('generalizations(x1, y1)'))
+            self.table = ['data/table_files/T1.txt', 'data/table_files/T2.txt', 'data/table_files/T3.txt']
+            #self.table = []
+            #self.db_name = 'nell_noindex.db'
+            #args.index = True
+            #args.is_nell = True
+    print(Lifter(args()).lift('Q(x1)'))
+    #print(Lifter(args()).lift('generalizations(x1, y1)'))
 
 if __name__ == '__main__':
     main()

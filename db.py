@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
 class SQLDatabase:
-    def __init__(self, db_name=":memory:", table_files=[], create_index=True, is_nell=False):
+    def __init__(self, db_name=':memory:', table_files=[], create_index=True, is_nell=False):
         self.create_index = create_index
         self.db_conn = sqlite3.connect(db_name)
         if table_files:
