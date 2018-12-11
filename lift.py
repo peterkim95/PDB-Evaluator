@@ -46,7 +46,7 @@ class Lifter:
         self.query = (conj + ZeroOrMore('||' + conj)).setResultsName('query', listAllMatches=True)
         self.use_speedup = getattr(args, 'speedup', False)
 
-    def _lift_helper(self, query_string, subsitutions, invertLiterals=True):
+    def _lift_helper(self, query_string, subsitutions, invertProbs=False, invertLiterals=True):
         #helper
         def union_find(lis):
             lis = map(set, lis)
@@ -92,19 +92,20 @@ class Lifter:
                 almost_Q = [x for x in Q.vars if x != missing_var]
                 tuple_probs = [row[0] for row in self.pdb.getcol(table, 
                     (subsitutions[v] for v in almost_Q), missing_var)]
+                if invertProbs:
+                    tuple_probs = [1 - x for x in tuple_probs]
                 prob = reduce(lambda x,y: x * y, tuple_probs)
                 _LOGGER.info("{} RESULT: Prob of query: {} with returned probabilities {} = {}"
                     .format(indent, pretty(Q), tuple_probs, prob))
                 return prob
-        else:
-            # base case of recursion, 1 table and vars all instantiated
-            if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
-                table = Q.table.pop()
-                prob = self.pdb.lookup(table, (subsitutions[v] for v in Q.vars))
-                _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
-                if invertLiterals:
-                    return 1 - prob
-                return prob
+        # base case of recursion, 1 table and vars all instantiated
+        if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
+            table = Q.table.pop()
+            prob = self.pdb.lookup(table, (subsitutions[v] for v in Q.vars))
+            _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
+            if invertLiterals:
+                return 1 - prob
+            return prob
 
         if len(Q.conj) > 1:
 
@@ -116,7 +117,7 @@ class Lifter:
             # all independent
             if len(dependent_components) > 1 :
                 _LOGGER.info("{} DECOMPOSABLE DISJUNCTION: {} ".format(indent, dependent_components))
-                prob = 1-reduce(operator.mul, map(lambda x: 1-self._lift_helper(','.join(x), subsitutions), dependent_components))
+                prob = 1-reduce(operator.mul, map(lambda x: 1-self._lift_helper(','.join(x), subsitutions, invertProbs=True), dependent_components))
                 _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
                 return prob
 
@@ -232,7 +233,7 @@ def main():
             self.speedup = False
             # self.index = True
             # self.is_nell = True
-    print(Lifter(args()).lift('R(x1, y1) || Q(x1)'))
+    print(Lifter(args()).lift('R(x1, y1) || P(x1) || Q(x2) || R(x2,y2)'))
     # print(Lifter(args()).lift('generalizations(x1, y1)'))
 
 if __name__ == '__main__':
