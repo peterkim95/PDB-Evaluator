@@ -79,6 +79,18 @@ class SQLDatabase:
             print("More than one match found! Returning the first.")
         return rows[0][0]
 
+    def getcol(self, table, var, missing_var):
+        where_clause = ' WHERE'
+        for i, v in enumerate(tuple(var)):
+
+            where_clause += ' c{} = {} AND'.format(i, v)
+
+        q = 'SELECT Pr FROM {}'.format(table) + where_clause[:-3]
+        rows = self._execute_query(q)
+        if not rows:
+            return 0
+        return rows
+
     def ground(self, table, varindex):
         q = 'SELECT * FROM {}'.format(table)
         g = [str(row[varindex]) for row in self._execute_query(q)]

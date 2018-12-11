@@ -12,7 +12,7 @@ from db import SQLDatabase
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.WARNING)
+_LOGGER.setLevel(logging.INFO)
 
 class Lifter:
 
@@ -237,7 +237,7 @@ def main():
             self.speedup = False
             # self.index = True
             # self.is_nell = True
-    print(Lifter(args()).lift('R(x1, y1) || Q(x1)'))
+    print(Lifter(args()).lift('Q(x1)'))
     # print(Lifter(args()).lift('generalizations(x1, y1)'))
 
 if __name__ == '__main__':
