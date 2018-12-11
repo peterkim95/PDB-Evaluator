@@ -5,9 +5,10 @@ import itertools
 import operator
 import traceback
 import math
-from pprint import pprint
+from timeit import default_timer as timer
 
-from table import SQLDatabase
+from pprint import pprint
+from db import SQLDatabase
 
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
@@ -32,15 +33,15 @@ class Lifter:
     #
     # !A abcd (!a or !b) and  (!c or !d)
 
-    def __init__(self, table_files, use_speedup = False):
-        self.pdb = SQLDatabase(table_files=table_files)
+    def __init__(self, args):
+        self.pdb = SQLDatabase(db_name=args.db_name, table_files=args.table, create_index=args.index)
 
         varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
-        tablename = Word(alphas.upper(), exact=1).setResultsName('table', listAllMatches=True)
+        tablename = Word(alphas).setResultsName('table', listAllMatches=True)
         clause = (tablename + '(' + (varname + ZeroOrMore(',' + varname)) + ')').setResultsName('clause', listAllMatches=True)
         conj = (clause + ZeroOrMore(',' + clause)).setResultsName('conj', listAllMatches=True)
         self.query = (conj + ZeroOrMore('||' + conj)).setResultsName('query', listAllMatches=True)
-        self.use_speedup = use_speedup
+        self.use_speedup = args.use_speedup
 
     def _lift_helper(self, query_string, subsitutions, invertLiterals=True):
         #helper
@@ -217,14 +218,23 @@ class Lifter:
 
 
     def lift(self, query):
-        return 1 - self._lift_helper(query, dict(), invertLiterals=True)
+        start_time = timer()
+        answer = 1 - self._lift_helper(query, dict(), invertLiterals=True)
+        end_time = timer()
+        _LOGGER.info(' FINAL RESULT: P({}) = {} ({}ms)'.format(query, answer, (end_time - start_time) * 1000))
+        return answer
 
 
 def main():
-    # test for test_query1
-    print(Lifter(['data/table_files/T1.txt', 'data/table_files/T2.txt', 'data/table_files/T3.txt']).lift('R(x1, y1) || Q(x1)'))
-    # test for large query T4
-    #print(Lifter(['data/table_files/T1.txt', 'data/table_files/T4.txt']).lift('Z(x1,x2,x3,x4) || P(x1)'))
+    class args(object):
+        def __init__(self):
+            # self.table = ['data/table_files/T1.txt', 'data/table_files/T2.txt', 'data/table_files/T3.txt']
+            self.table = []
+            self.db_name = 'nell_noindex.db'
+            args.index = True
+            args.is_nell = True
+    print(Lifter(args()).lift('R(x1, y1) || Q(x1)'))
+    # print(Lifter(args()).lift('generalizations(x1, y1)'))
 
 if __name__ == '__main__':
     main()
