@@ -44,7 +44,7 @@ class Lifter:
         clause = (tablename + '(' + (varname + ZeroOrMore(',' + varname)) + ')').setResultsName('clause', listAllMatches=True)
         conj = (clause + ZeroOrMore(',' + clause)).setResultsName('conj', listAllMatches=True)
         self.query = (conj + ZeroOrMore('||' + conj)).setResultsName('query', listAllMatches=True)
-        self.use_speedup = args.use_speedup
+        self.use_speedup = args.speedup
 
     def _lift_helper(self, query_string, subsitutions, invertLiterals=True):
         #helper
@@ -232,12 +232,13 @@ def main():
     class args(object):
         def __init__(self):
             self.table = ['data/table_files/T1.txt', 'data/table_files/T2.txt', 'data/table_files/T3.txt']
-            #self.table = []
-            #self.db_name = 'nell_noindex.db'
-            #args.index = True
-            #args.is_nell = True
-    print(Lifter(args()).lift('Q(x1)'))
-    #print(Lifter(args()).lift('generalizations(x1, y1)'))
+            # self.table = []
+            # self.db_name = 'nell_noindex.db'
+            self.speedup = False
+            # self.index = True
+            # self.is_nell = True
+    print(Lifter(args()).lift('R(x1, y1) || Q(x1)'))
+    # print(Lifter(args()).lift('generalizations(x1, y1)'))
 
 if __name__ == '__main__':
     main()
