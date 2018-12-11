@@ -32,7 +32,7 @@ class Lifter:
     #
     # !A abcd (!a or !b) and  (!c or !d)
 
-    def __init__(self, table_files):
+    def __init__(self, table_files, use_speedup = False):
         self.pdb = SQLDatabase(table_files=table_files)
 
         varname = Word(alphas, alphanums).setResultsName('vars', listAllMatches=True)
@@ -40,6 +40,7 @@ class Lifter:
         clause = (tablename + '(' + (varname + ZeroOrMore(',' + varname)) + ')').setResultsName('clause', listAllMatches=True)
         conj = (clause + ZeroOrMore(',' + clause)).setResultsName('conj', listAllMatches=True)
         self.query = (conj + ZeroOrMore('||' + conj)).setResultsName('query', listAllMatches=True)
+        self.use_speedup = use_speedup
 
     def _lift_helper(self, query_string, subsitutions, invertLiterals=True):
         #helper
@@ -79,29 +80,32 @@ class Lifter:
         Q = self.query.parseString(query_string)
         _LOGGER.info("{} LIFT: working on query: {} with subsitutions: {}".format(indent, pretty(Q), subsitutions))
 
-        # Speedup of a base case when there's only 1 var left to ground
-        if len(Q.table) == 1 and len(subsitutions.keys()) == len(set(Q.vars)) - 1:
-            table = Q.table.pop()
-            missing_var = set(Q.vars).difference(subsitutions.keys()).pop()
-            almost_Q = [x for x in Q.vars if x != missing_var]
-            tuple_probs = [row[0] for row in self.pdb.getcol(table, 
-                (subsitutions[v] for v in almost_Q), missing_var)]
-            inverted_tuple_probs = [1 - x for x in tuple_probs]
-            prob = reduce(lambda x,y: x * y, inverted_tuple_probs)
-            _LOGGER.info("{} RESULT: Prob of query: {} with returned probabilities {} = {}"
-                .format(indent, pretty(Q), tuple_probs, prob))
-            if invertLiterals:
-                return 1 - prob
-            return prob
-
-        # base case of recursion, 1 table and vars all instantiated
-        if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
-            table = Q.table.pop()
-            prob = self.pdb.lookup(table, (subsitutions[v] for v in Q.vars))
-            _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
-            if invertLiterals:
-                return 1 - prob
-            return prob
+        if self.use_speedup:
+            # Speedup of a base case when there's only 1 var left to ground
+            if len(Q.table) == 1 and len(subsitutions.keys()) == len(set(Q.vars)) - 1:
+                table = Q.table.pop()
+                missing_var = set(Q.vars).difference(subsitutions.keys()).pop()
+                almost_Q = [x for x in Q.vars if x != missing_var]
+                tuple_probs = [row[0] for row in self.pdb.getcol(table, 
+                    (subsitutions[v] for v in almost_Q), missing_var)]
+                prob = reduce(lambda x,y: x * y, tuple_probs)
+                _LOGGER.info("{} RESULT: Prob of query: {} with returned probabilities {} = {}"
+                    .format(indent, pretty(Q), tuple_probs, prob))
+                if invertLiterals:
+                    inverted_tuple_probs = [1 - x for x in tuple_probs]
+                    inverted_prob = reduce(lambda x,y: x * y, inverted_tuple_probs)
+                    return 1 - inverted_prob
+                else:
+                    return prob
+        else:
+            # base case of recursion, 1 table and vars all instantiated
+            if len(Q.table) == 1 and subsitutions.keys() == set(Q.vars):
+                table = Q.table.pop()
+                prob = self.pdb.lookup(table, (subsitutions[v] for v in Q.vars))
+                _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
+                if invertLiterals:
+                    return 1 - prob
+                return prob
 
         if len(Q.conj) > 1:
 
