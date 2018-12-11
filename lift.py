@@ -116,7 +116,6 @@ class Lifter:
             # all independent
             if len(dependent_components) > 1 :
                 _LOGGER.info("{} DECOMPOSABLE DISJUNCTION: {} ".format(indent, dependent_components))
-                print("\n\n", dependent_components)
                 prob = 1-reduce(operator.mul, map(lambda x: 1-self._lift_helper(','.join(x), subsitutions), dependent_components))
                 _LOGGER.info("{} RESULT: Prob of query: {} = {}".format(indent, pretty(Q), prob))
                 return prob
